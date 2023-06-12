@@ -5,16 +5,16 @@ from selenium.common import exceptions
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
-# from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.chrome.service import Service as ChromiumService
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.core.utils import ChromeType
 
-SQLserver = '10.21.24.113'
-username = 'sa2'
-password = 'labwke405'
-database = 'uniqueDB'
+SQLserver = '10.21.26.209'
+username = 'sa'
+password = 'Labwke405'
+database = 'UniqueDB'
 driver = '{FreeTDS}'
 connectionString = 'DRIVER={0};SERVER={1};PORT=1433;DATABASE={2};UID={3};PWD={4}'.format(driver, SQLserver, database, username, password)
 
@@ -198,12 +198,13 @@ try:
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+    user_agent = 'Mozilla/5.0 (Linux; Android 5.0.2; SAMSUNG SM-T550 Build/LRX22G) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/3.3 Chrome/38.0.2125.102 Safari/537.36'
+    options.add_argument('--user-agent=%s' % user_agent)
     webdriver_path = ChromiumService(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
     caps = DesiredCapabilities.CHROME
     caps['goog:loggingPrefs'] = {'performance': 'ALL'}
     chrome_browser = webdriver.Chrome(service=webdriver_path, options = options, desired_capabilities=caps)
-
-    chrome_browser.get("https://m.facebook.com/home.php")
+    chrome_browser.get('https://m.facebook.com/home.php')
     time.sleep(sleep)
 
     cnxn = pyodbc.connect(connectionString)
@@ -230,14 +231,12 @@ try:
                 targeturl = targetlink[1].replace('mbasic.facebook.com', 'm.facebook.com')
             else:
                 targeturl = targetlink[1]
-            print(targeturl)
             chrome_browser.get(targeturl)
             time.sleep(sleep)
             try:
                 scroll()
                 articles = chrome_browser.find_elements(By.TAG_NAME, value='article')
                 for a in articles:
-                    post_time = ''
                     try:
                         data_ft = a.get_attribute('data-ft')
                         data_ft_json = json.loads(data_ft)
@@ -246,11 +245,9 @@ try:
                         struct_time = time.localtime(post_time_string)
                         post_time = time.strftime("%Y/%m/%d %H:%M:%S", struct_time)
                     except KeyError:
-                        post_time = ''
-                        pass
+                        continue
                     except TypeError:
-                        post_time = ''
-                        pass
+                        continue
                     anchor = a.find_element(By.CSS_SELECTOR, value="[data-sigil='feed-ufi-trigger']")
                     url = anchor.get_attribute('href')
                     newurl = normalized(url)
@@ -263,7 +260,6 @@ try:
                         select @ar
                     """ 
                     values_insert = (newurl, post_time, targetlink[4], targetlink[5], targetlink[3], targetlink[2])
-                    print(values_insert)
                     try:
                         cursor.execute(SQLString_insert, values_insert)
                         arrive = cursor.fetchall()
@@ -288,26 +284,26 @@ try:
                 ActionChains(chrome_browser).move_to_element(a).perform()
                 time.sleep(sleep)
     
-        cnxn = pyodbc.connect(connectionString)
-        cursor = cnxn.cursor()
-        SQLString_insert = """
-        declare @result bit, @re bit
-        exec xp_updateAccountState @Account=?, @PWD=?, @result=@re output
-        select @re
-        """ 
-        updateAccountState_input = (AC, PWD)
-        try:
-            cursor.execute(SQLString_insert, updateAccountState_input)
-            result = cursor.fetchone()
-            if (result[0] == True):
-                print("Success")
-            else:
-                print("Error")
-        except pyodbc.IntegrityError:
-            with open('error.txt', 'w', encoding='utf-8') as f:
-                f.write(pyodbc.ProgrammingError.args)
-        cursor.commit()
-        cnxn.close()
+    cnxn = pyodbc.connect(connectionString)
+    cursor = cnxn.cursor()
+    SQLString_insert = """
+    declare @result bit, @re bit
+    exec xp_updateAccountState @Account=?, @PWD=?, @result=@re output
+    select @re
+    """ 
+    updateAccountState_input = (AC, PWD)
+    try:
+        cursor.execute(SQLString_insert, updateAccountState_input)
+        result = cursor.fetchone()
+        if (result[0] == True):
+            print("Success")
+        else:
+            print("Error")
+    except pyodbc.IntegrityError:
+        with open('error.txt', 'w', encoding='utf-8') as f:
+            f.write(pyodbc.ProgrammingError.args)
+    cursor.commit()
+    cnxn.close()
     
     chrome_browser.delete_all_cookies()
     chrome_browser.quit()
